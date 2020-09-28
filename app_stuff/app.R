@@ -111,10 +111,12 @@ server <- function(input, output) {
    categories <- paste(selected_cats, collapse = " | ")
    
    ## Select date range
-   
    date_range <- input$dateRange
-   formatted_date1 <- str_c(str_c(gsub("-", "", date_range[[1]]) , "*"))
-   formatted_date2 <- str_c(str_c(gsub("-", "", date_range[[2]]) , "*"))
+   date1 <- as_date(input$dateRange[[1]])
+   date2 <- as_date(input$dateRange[[2]])
+   formatted_date1 <- str_c(gsub("-", "", date_range[[1]]) , "*")
+   formatted_date2 <- str_c(gsub("-", "", date_range[[2]]) , "*")
+   date_string <- if_else(date2 - date1 > 0, glue('["{formatted_date1}" TO "{formatted_date2}"]'), glue('{formatted_date1}'))
    
    ## Limit
    limit <- c(input$resultlimits)
@@ -125,58 +127,26 @@ server <- function(input, output) {
       
       parsed_string <- process_search_string(search_string = input$search_string)
       
-      if (formatted_date1 != formatted_date2) {
          
-         full_results <- as_tibble(arxiv_search(query = glue("ti: ({parsed_string}) AND cat: ({categories}) AND submittedDate: [{formatted_date1} TO {formatted_date2}]")
+         full_results <- as_tibble(arxiv_search(query = glue("ti: ({parsed_string}) AND cat: ({categories}) AND submittedDate: {date_string}")
                                                 , limit = limit
                                                 , sort_by = c("submitted")
                                                 , ascending = FALSE
                                                 , batchsize = limit))
-      } else {
-         
-         full_results <- as_tibble(arxiv_search(query = glue("ti: ({parsed_string}) AND cat: ({categories}) AND submittedDate: {formatted_date1}")
-                                                , limit = limit
-                                                , sort_by = c("submitted")
-                                                , ascending = FALSE
-                                                , batchsize = limit))
-      }
+
       
    } else {
    
-      if (formatted_date1 != formatted_date2) {
+      
          
-         full_results <- as_tibble(arxiv_search(query = glue("cat: ({categories}) AND submittedDate: [{formatted_date1} TO {formatted_date2}]")
+         full_results <- as_tibble(arxiv_search(query = glue("cat: ({categories}) AND submittedDate: {date_string}")
                                                 , limit = limit
                                                 , sort_by = c("submitted")
                                                 , ascending = FALSE
                                                 , batchsize = limit))
-      } else {
-         
-         full_results <- as_tibble(arxiv_search(query = glue("cat: ({categories}) AND submittedDate: {formatted_date1}")
-                                                , limit = limit
-                                                , sort_by = c("submitted")
-                                                , ascending = FALSE
-                                                , batchsize = limit))
-      }
       
    }
       
-   # Obtain arxiv search results and save them to a Tibble
-   # if (formatted_date1 != formatted_date2) {
-   #   
-   #   full_results <- as_tibble(arxiv_search(query = glue("cat: ({categories}) AND submittedDate: [{formatted_date1} TO {formatted_date2}]")
-   #                                          , limit = limit
-   #                                          , sort_by = c("submitted")
-   #                                          , ascending = FALSE
-   #                                          , batchsize = limit))
-   # } else {
-   #   
-   #   full_results <- as_tibble(arxiv_search(query = glue("cat: ({categories}) AND submittedDate: {formatted_date1}")
-   #                                          , limit = limit
-   #                                          , sort_by = c("submitted")
-   #                                          , ascending = FALSE
-   #                                          , batchsize = limit))
-   # }
    })
    
    ## Restrict to only a few columns
