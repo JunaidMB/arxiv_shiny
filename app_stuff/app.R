@@ -6,6 +6,7 @@ library(stringr)
 library(lubridate)
 library(ggplot2)
 library(shiny)
+library(cleanNLP)
 
 ui <- fluidPage(
   title = 'Arxiv Aggregator - A Web App over the Arxiv API',
@@ -40,6 +41,11 @@ ui <- fluidPage(
                      max = Sys.Date()
       ),
       
+      textInput(inputId = 'search_string',
+                label = 'Optional: Search Titles',
+                value = "",
+                placeholder = "Markov Chains"),
+      
       numericInput(inputId = "resultlimits",
                    label = "How many results would you like to return? \n Note: You may see fewer results than the limit",
                    value = 100,
@@ -73,6 +79,25 @@ ui <- fluidPage(
 
 server <- function(input, output) {
   
+   # Define a helper function
+   process_search_string <- function(search_string) {
+      
+      df <- data.frame(id = 1,
+                       text = search_string)
+      
+      nlp_annotated_df <- cnlp_annotate(df)$token
+      
+      # Pull out nouns and symbols only 
+      
+      keywords <- nlp_annotated_df %>% 
+         filter(upos %in% c("NOUN", "PROPN", "SYM")) %>% 
+         pull(token)
+      
+      parsed_string <- paste(keywords, collapse =  " | ")
+      
+      return(parsed_string)
+      
+   }
 
    
 
@@ -95,22 +120,63 @@ server <- function(input, output) {
    limit <- c(input$resultlimits)
    
    withProgress(message = 'Fetching Results', value = 0.5, {
-   # Obtain arxiv search results and save them to a Tibble
-   if (formatted_date1 != formatted_date2) {
-     
-     full_results <- as_tibble(arxiv_search(query = glue("cat: ({categories}) AND submittedDate: [{formatted_date1} TO {formatted_date2}]")
-                                            , limit = limit
-                                            , sort_by = c("submitted")
-                                            , ascending = FALSE
-                                            , batchsize = limit))
+      
+   if (nchar(input$search_string) > 0) {
+      
+      parsed_string <- process_search_string(search_string = input$search_string)
+      
+      if (formatted_date1 != formatted_date2) {
+         
+         full_results <- as_tibble(arxiv_search(query = glue("ti: ({parsed_string}) AND cat: ({categories}) AND submittedDate: [{formatted_date1} TO {formatted_date2}]")
+                                                , limit = limit
+                                                , sort_by = c("submitted")
+                                                , ascending = FALSE
+                                                , batchsize = limit))
+      } else {
+         
+         full_results <- as_tibble(arxiv_search(query = glue("ti: ({parsed_string}) AND cat: ({categories}) AND submittedDate: {formatted_date1}")
+                                                , limit = limit
+                                                , sort_by = c("submitted")
+                                                , ascending = FALSE
+                                                , batchsize = limit))
+      }
+      
    } else {
-     
-     full_results <- as_tibble(arxiv_search(query = glue("cat: ({categories}) AND submittedDate: {formatted_date1}")
-                                            , limit = limit
-                                            , sort_by = c("submitted")
-                                            , ascending = FALSE
-                                            , batchsize = limit))
+   
+      if (formatted_date1 != formatted_date2) {
+         
+         full_results <- as_tibble(arxiv_search(query = glue("cat: ({categories}) AND submittedDate: [{formatted_date1} TO {formatted_date2}]")
+                                                , limit = limit
+                                                , sort_by = c("submitted")
+                                                , ascending = FALSE
+                                                , batchsize = limit))
+      } else {
+         
+         full_results <- as_tibble(arxiv_search(query = glue("cat: ({categories}) AND submittedDate: {formatted_date1}")
+                                                , limit = limit
+                                                , sort_by = c("submitted")
+                                                , ascending = FALSE
+                                                , batchsize = limit))
+      }
+      
    }
+      
+   # Obtain arxiv search results and save them to a Tibble
+   # if (formatted_date1 != formatted_date2) {
+   #   
+   #   full_results <- as_tibble(arxiv_search(query = glue("cat: ({categories}) AND submittedDate: [{formatted_date1} TO {formatted_date2}]")
+   #                                          , limit = limit
+   #                                          , sort_by = c("submitted")
+   #                                          , ascending = FALSE
+   #                                          , batchsize = limit))
+   # } else {
+   #   
+   #   full_results <- as_tibble(arxiv_search(query = glue("cat: ({categories}) AND submittedDate: {formatted_date1}")
+   #                                          , limit = limit
+   #                                          , sort_by = c("submitted")
+   #                                          , ascending = FALSE
+   #                                          , batchsize = limit))
+   # }
    })
    
    ## Restrict to only a few columns
