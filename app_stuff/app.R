@@ -8,6 +8,9 @@ library(ggplot2)
 library(shiny)
 library(cleanNLP)
 
+select_choices <- aRxiv::arxiv_cats$abbreviation
+names(select_choices) <- aRxiv::arxiv_cats$description
+
 ui <- fluidPage(
    title = 'Arxiv Aggregator - A Web App over the Arxiv API',
    
@@ -18,20 +21,10 @@ ui <- fluidPage(
          selectizeInput(
             inputId = 'subject_select',
             label = 'Select the Subjects from Menu',
-            choices = c("Statistics - Applications" = "stat.AP",
-                        "Statistics - Computation" = "stat.CO",
-                        "Statistics - Machine Learning" = "stat.ML",
-                        "Statistics - Theory" = "math.ST",
-                        "Mathematics - Probability" = "math.PR",
-                        "Mathematics - Statistics" = "math.ST",
-                        "Mathematics - Optimization and Control" = "math.OC",
-                        "Mathematics - Functional Analysis" = "math.FA",
-                        "Mathematics - Combinatorics" = "math.CO",
-                        "Computer Science - Discrete Mathematics" = "cs.DM",
-                        "Computer Science - Artificial Intelligence" = "cs.AI",
-                        "Computer Science - Computer Vision and Pattern Recognition" = "cs.CV"),
+            choices = select_choices,
             selected = "stat.ML",
             multiple = TRUE),
+         
          
          dateRangeInput('dateRange',
                         label = 'Date Range',
