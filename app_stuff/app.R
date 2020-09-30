@@ -8,6 +8,7 @@ library(ggplot2)
 library(shiny)
 library(cleanNLP)
 
+# Define selection categories for the UI
 select_choices <- aRxiv::arxiv_cats$abbreviation
 names(select_choices) <- aRxiv::arxiv_cats$description
 
