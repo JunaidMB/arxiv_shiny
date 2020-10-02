@@ -24,9 +24,11 @@ bq_con <- DBI::dbConnect(bigquery(),
 # Pull down DB table
 
 
-# Obtain latest days papers for all categories
+# Obtain latest days papers for select categories
+categories <- c('stat.AP', 'stat.CO', 'stat.ML', 'stat.ME', 'stat.TH','math.OC', 'math.PR', 'math.ST', 'math.CO', 'cs.AI', 'cs.GT', 'cs.CV')
 select_choices <- aRxiv::arxiv_cats$abbreviation
 names(select_choices) <- aRxiv::arxiv_cats$description
+choices <- select_choices[select_choices %in% categories]
 
 # Set and format dates for the arxiv API
 sql <- "select max(date(submitted)) as date from arxiv_paper_repo.arxiv_paper_repo"
@@ -40,7 +42,7 @@ formatted_today <- stringr::str_c(stringr::str_c(gsub("-", "", Sys.Date()) , "*"
 # Update table for all categories
 today_results <- data.frame()
 
-for (i in seq_along(select_choices)) {
+for (i in seq_along(choices)) {
   
   results_today <- try(as_tibble(aRxiv::arxiv_search(query = glue("cat: ({select_choices[[i]]}) AND submittedDate: [{formatted_last_db_day} TO {formatted_today}]")
                                           , limit = 10000
@@ -50,7 +52,7 @@ for (i in seq_along(select_choices)) {
   
   today_results <- dplyr::union_all(today_results, results_today)
   
-  cat(i, names(select_choices)[i], "\n")
+  cat(i, names(choices)[i], "\n")
   
 }
 
