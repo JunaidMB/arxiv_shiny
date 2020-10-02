@@ -6,11 +6,14 @@ library(stringr)
 library(lubridate)
 library(ggplot2)
 library(shiny)
+library(dotenv)
 library(cleanNLP)
 
 # Define selection categories for the UI
+categories <- c('stat.AP', 'stat.CO', 'stat.ML', 'stat.ME', 'stat.TH','math.OC', 'math.PR', 'math.ST', 'math.CO', 'cs.AI', 'cs.GT', 'cs.CV')
 select_choices <- aRxiv::arxiv_cats$abbreviation
 names(select_choices) <- aRxiv::arxiv_cats$description
+choices <- select_choices[select_choices %in% categories]
 
 ui <- fluidPage(
    title = 'Arxiv Aggregator - A Web App over the Arxiv API',
@@ -22,7 +25,7 @@ ui <- fluidPage(
          selectizeInput(
             inputId = 'subject_select',
             label = 'Select the Subjects from Menu',
-            choices = select_choices,
+            choices = choices,
             selected = "stat.ML",
             multiple = TRUE),
          
@@ -35,19 +38,6 @@ ui <- fluidPage(
                         max = Sys.Date()
          ),
          
-         textInput(inputId = 'search_string',
-                   label = 'Optional: Search Titles',
-                   value = "",
-                   placeholder = "Markov Chains"),
-         
-         numericInput(inputId = "resultlimits",
-                      label = "How many results would you like to return? \n Note: You may see fewer results than the limit",
-                      value = 100,
-                      min = 1,
-                      max = 1000,
-                      step = 1),
-         
-         h5("Wait 3 seconds before sending a new request"),
          
          br(),
          
@@ -72,69 +62,43 @@ ui <- fluidPage(
 )
 
 server <- function(input, output) {
+
+
+   # Authentication for BQ
+   bigrquery::bq_auth(path = Sys.getenv('auth_path'))
    
-   # Define a helper function
-   process_search_string <- function(search_string) {
-      
-      if (search_string > 0) {
-         
-         df <- data.frame(id = 1,
-                          text = search_string)
-         
-         nlp_annotated_df <- cnlp_annotate(df)$token
-         
-         # Pull out nouns and symbols only 
-         
-         keywords <- nlp_annotated_df %>% 
-            filter(upos %in% c("NOUN", "PROPN", "SYM")) %>% 
-            pull(token)
-         
-         parsed_string <- paste(keywords, collapse =  " | ")
-         
-         return(parsed_string) } else {
-            
-            return("")
-         }
-      
-   }
+   
+   # Connect to DB
+   bq_con <- DBI::dbConnect(bigquery(),
+                            project = Sys.getenv('project_id'),
+                            dataset = Sys.getenv('dataset_id'))
    
    observeEvent(input$arxiv.get.results, {
       
       # Input parameters
-      ## Title
-      parsed_string <- process_search_string(search_string = input$search_string)
-      title <- if_else(nchar(parsed_string) > 0, glue('ti:({parsed_string})'), "") 
       
       ## Select Categories to search
       selected_cats <- c(input$subject_select)
-      categories <- paste(selected_cats, collapse = " | ")
-      cats <- glue('cat:({categories})')
-      
+
       ## Select date range
       date_range <- input$dateRange
-      date1 <- as_date(input$dateRange[[1]])
-      date2 <- as_date(input$dateRange[[2]])
-      formatted_date1 <- str_c(gsub("-", "", date_range[[1]]) , "*")
-      formatted_date2 <- str_c(gsub("-", "", date_range[[2]]) , "*")
-      date_string <- if_else(date2 - date1 > 0, glue('submittedDate:["{formatted_date1}" TO "{formatted_date2}"]'), glue('submittedDate:({formatted_date1})'))
-      
-      # Construct query to feed to arxiv search
-      query_elements <- stri_remove_empty(c(title, cats), FALSE)
-      partial_query_pasted <- paste(query_elements, collapse = ' AND ')
-      query <- glue('{partial_query_pasted} AND {date_string}')
-      
-      
-      ## Limit
-      limit <- c(input$resultlimits)
       
       withProgress(message = 'Fetching Results', value = 0.5, {
          
          
-         full_results <- as_tibble(arxiv_search(query = query
-                                                , limit = limit
-                                                , sort_by = c("submitted")
-                                                , ascending = FALSE
-                                                , batchsize = limit))
+         # Pull data from database
+         sql <- glue("select * from arxiv_paper_repo.arxiv_paper_repo where date(submitted) between '{as_date(date_range[1])}' AND '{as_date(date_range[2])}' AND title <> ''")
+         
+         full_results <- bigrquery::bq_table_download(bigrquery::bq_project_query(x = Sys.getenv('project_id'), query = sql), max_results = Inf)
+         
+         full_results <- full_results %>% 
+            arrange(submitted) %>% 
+            filter(id != "")
+         
+         # Filter the dataframe based on input
+         full_results <- full_results %>% 
+            filter((str_detect(string = categories, pattern = paste(selected_cats, collapse = "|"), negate = FALSE)) & 
+                      between(as_date(submitted), as_date(date_range[1]), as_date(date_range[2]) )  )
          
       })
       
@@ -143,7 +107,8 @@ server <- function(input, output) {
          mutate(submitted = str_sub(submitted, end = 10),
                 authors = str_replace_all(authors, "[|]", " & "),
                 link_pdf = paste0("<a href='", link_pdf, "'target='_blank'>", link_pdf, "</a>")) %>% 
-         select(Title = title, Submission_Date = submitted, Authors = authors, PDF_Link = link_pdf, Primary_Category = primary_category)
+         select(Title = title, Submission_Date = submitted, Authors = authors, PDF_Link = link_pdf, Primary_Category = primary_category) %>% 
+         distinct()
       
       # Output table
       output$table <- renderDataTable(

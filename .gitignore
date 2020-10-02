@@ -1,6 +1,8 @@
 /database_update/arxiv shiny-0545b9995834.json
 /database_update/arxiv_shiny-0545b9995834.json
 /database_update/.env
+/app_stuff/arxiv_shiny-0545b9995834.json
+/app_stuff/.env
 arxiv_papers.csv
 database_update.R
 
