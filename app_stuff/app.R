@@ -8,6 +8,8 @@ library(ggplot2)
 library(shiny)
 library(dotenv)
 library(cleanNLP)
+library(bigrquery)
+library(DBI)
 
 # Define selection categories for the UI
 categories <- c('stat.AP', 'stat.CO', 'stat.ML', 'stat.ME', 'stat.TH','math.OC', 'math.PR', 'math.ST', 'math.CO', 'cs.AI', 'cs.GT', 'cs.CV')

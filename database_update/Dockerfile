@@ -5,7 +5,7 @@ RUN R -e "install.packages(c('jsonlite', 'bigrquery', 'DBI' ,'aRxiv', 'lubridate
 
 COPY plumber.R plumber.R
 COPY .env .env
-COPY arxiv_shiny-0545b9995834.json arxiv_shiny-0545b9995834.json
+COPY arxiv-shiny-20448991f220.json arxiv-shiny-20448991f220.json
 
 EXPOSE 8000
 
