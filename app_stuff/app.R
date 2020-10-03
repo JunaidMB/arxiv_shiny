@@ -63,7 +63,6 @@ ui <- fluidPage(
 
 server <- function(input, output) {
 
-   withProgress(message = 'Initialising App', detail = 'This will take a few moments', value = 0.5, {
    # Authentication for BQ
    bigrquery::bq_auth(path = Sys.getenv('auth_path'))
    
@@ -73,11 +72,6 @@ server <- function(input, output) {
                             project = Sys.getenv('project_id'),
                             dataset = Sys.getenv('dataset_id'))
    
-   # Pull data from database
-   sql <- glue("select * from arxiv_paper_repository.arxiv_paper_repository where date(submitted) between '{floor_date(Sys.Date() - 90, 'month')}' AND '{Sys.Date() - 2}' AND title <> ''")
-
-   full_results <- bigrquery::bq_table_download(bigrquery::bq_project_query(x = Sys.getenv('project_id'), query = sql), max_results = Inf)
-   })
    
    observeEvent(input$arxiv.get.results, {
       
@@ -85,17 +79,20 @@ server <- function(input, output) {
       
       ## Select Categories to search
       selected_cats <- c(input$subject_select)
+      
+      string_concat <- str_c("categories LIKE '%", selected_cats, "%'")
+      formatted_string <- paste(string_concat, collapse = ' OR ')
 
       ## Select date range
       date_range <- input$dateRange
       
-      withProgress(message = 'Fetching Results', value = 0.5, {
+      withProgress(message = 'Fetching Results', detail = 'Please Wait', value = 0.5, {
          
          
          # Pull data from database
-         # sql <- glue("select * from arxiv_paper_repository.arxiv_paper_repository where date(submitted) between '{as_date(date_range[1])}' AND '{as_date(date_range[2])}' AND title <> ''")
-         # 
-         # full_results <- bigrquery::bq_table_download(bigrquery::bq_project_query(x = Sys.getenv('project_id'), query = sql), max_results = Inf)
+         sql <- glue("select * from arxiv_paper_repository.arxiv_paper_repository where date(submitted) between '{as_date(date_range[1])}' AND '{as_date(date_range[2])}' AND title <> '' AND {formatted_string}")
+
+         full_results <- bigrquery::bq_table_download(bigrquery::bq_project_query(x = Sys.getenv('project_id'), query = sql), max_results = Inf)
          
          full_results <- full_results %>% 
             arrange(submitted) %>% 
