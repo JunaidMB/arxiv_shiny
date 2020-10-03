@@ -68,7 +68,7 @@ server <- function(input, output) {
    withProgress(message = "Initialising - Don't use App", detail = 'This will take a few moments', value = 0.5, {
    
       # Authentication for BQ
-   bigrquery::bq_auth(path = Sys.getenv('auth_path'))
+   bigrquery::bq_auth(path = Sys.getenv('auth_path'), use_oob = TRUE)
    
    
    # Connect to DB

@@ -28,11 +28,10 @@ RUN R -e "install.packages(c('aRxiv', 'shiny', 'glue' ,'stringr', 'stringi', 'gm
 # copy the app to the image
 RUN mkdir /root/app_stuff
 COPY app_stuff /root/app_stuff
-COPY app_stuff/.env /root/app_stuff/.env
-COPY app_stuff/arxiv-shiny-20448991f220.json /root/app_stuff/arxiv-shiny-20448991f220.json
+
 
 COPY Rprofile.site /usr/lib/R/etc/
 
 EXPOSE 3838
 
-CMD ["R", "-e", "library(dotenv); library(cleanNLP); cnlp_init_udpipe(); shiny::runApp('/root/app_stuff', host='0.0.0.0', port=3838)"]
+CMD ["R", "-e", "library(dotenv); library(cleanNLP); cnlp_init_udpipe(); setwd('/root/app_stuff'); dotenv::load_dot_env(); shiny::runApp('/root/app_stuff', host='0.0.0.0', port=3838)"]
