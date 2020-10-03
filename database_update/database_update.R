@@ -31,7 +31,7 @@ names(select_choices) <- aRxiv::arxiv_cats$description
 choices <- select_choices[select_choices %in% categories]
 
 # Set and format dates for the arxiv API
-sql <- "select max(date(submitted)) as date from arxiv_paper_repo.arxiv_paper_repo"
+sql <- "select max(date(submitted)) as date from arxiv_paper_repository.arxiv_paper_repository"
 
 last_db_day <- lubridate::as_date(bigrquery::bq_table_download(bigrquery::bq_project_query(x = Sys.getenv('project_id'), query = sql), max_results = Inf)$date)
 today <- Sys.Date()
@@ -63,7 +63,7 @@ today_results <- today_results %>%
 
 # Write the table back to the database
 DBI::dbWriteTable(conn = bq_con,
-                  name = 'arxiv_paper_repo.arxiv_paper_repo',
+                  name = 'arxiv_paper_repository.arxiv_paper_repository',
                   value = today_results,
                   as_bq_fields(today_results),
                   overwrite = FALSE,
