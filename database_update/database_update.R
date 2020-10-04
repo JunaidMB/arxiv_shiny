@@ -33,7 +33,7 @@ choices <- select_choices[select_choices %in% categories]
 # Set and format dates for the arxiv API
 sql <- "select max(date(submitted)) as date from arxiv_paper_repository.arxiv_paper_repository"
 
-last_db_day <- lubridate::as_date(bigrquery::bq_table_download(bigrquery::bq_project_query(x = Sys.getenv('project_id'), query = sql), max_results = Inf)$date)
+last_db_day <- lubridate::as_date(bigrquery::bq_table_download(bigrquery::bq_project_query(x = Sys.getenv('project_id'), query = sql), max_results = Inf)$date) + days(1)
 today <- Sys.Date()
 
 formatted_last_db_day <- stringr::str_c(stringr::str_c(gsub("-", "", last_db_day) , "*"))
