@@ -65,23 +65,23 @@ ui <- fluidPage(
 
 server <- function(input, output) {
 
-   withProgress(message = "Initialising - Don't use App", detail = 'This will take a few moments', value = 0.5, {
-   
-      # Authentication for BQ
-   bigrquery::bq_auth(path = Sys.getenv('auth_path'), use_oob = TRUE)
-   
-   
-   # Connect to DB
-   bq_con <- DBI::dbConnect(bigquery(),
-                            project = Sys.getenv('project_id'),
-                            dataset = Sys.getenv('dataset_id'))
-   
-   # Pull data from database
-   sql <- glue("select * from arxiv_paper_repository.arxiv_paper_repository where date(submitted) between '{floor_date(Sys.Date() - 90, 'month')}' AND '{Sys.Date() - 2}' AND title <> ''")
+   # withProgress(message = "Initialising - Don't use App", detail = 'This will take a few moments', value = 0.5, {
+   # 
+   #    # Authentication for BQ
+   # bigrquery::bq_auth(path = Sys.getenv('auth_path'), use_oob = TRUE)
+   # 
+   # 
+   # # Connect to DB
+   # bq_con <- DBI::dbConnect(bigquery(),
+   #                          project = Sys.getenv('project_id'),
+   #                          dataset = Sys.getenv('dataset_id'))
+   # 
+   # # Pull data from database
+   # sql <- glue('select * from arxiv_paper_repository.arxiv_paper_repository where date(submitted) between \'{floor_date(Sys.Date() - 90, \'month\')}\' AND \'{Sys.Date() - 2}\' AND title <> \'\' ')
+   # 
+   # full_results <- bigrquery::bq_table_download(bigrquery::bq_project_query(x = Sys.getenv('project_id'), query = sql), max_results = Inf)
+   # })
 
-   full_results <- bigrquery::bq_table_download(bigrquery::bq_project_query(x = Sys.getenv('project_id'), query = sql), max_results = Inf)
-   })
-   
    observeEvent(input$arxiv.get.results, {
       
       # Input parameters
