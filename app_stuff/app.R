@@ -40,6 +40,11 @@ ui <- fluidPage(
                         max = Sys.Date()
          ),
          
+         textInput(inputId = 'search_string',
+                   label = 'Optional: Search Titles',
+                   value = "",
+                   placeholder = "Markov Chains"),
+         
          
          br(),
          
@@ -64,27 +69,38 @@ ui <- fluidPage(
 )
 
 server <- function(input, output) {
+   
+   # Define a helper function
+   process_search_string <- function(search_string) {
+      
+      if (search_string > 0) {
+         
+         df <- data.frame(id = 1,
+                          text = search_string)
+         
+         nlp_annotated_df <- cnlp_annotate(df)$token
+         
+         # Pull out nouns and symbols only 
+         
+         keywords <- nlp_annotated_df %>% 
+            filter(upos %in% c("NOUN", "PROPN", "SYM")) %>% 
+            pull(token)
+         
+         parsed_string <- paste(keywords, collapse =  " | ")
+         
+         return(parsed_string) } else {
+            
+            return("")
+         }
+      }
 
-   # withProgress(message = "Initialising - Don't use App", detail = 'This will take a few moments', value = 0.5, {
-   # 
-   #    # Authentication for BQ
-   # bigrquery::bq_auth(path = Sys.getenv('auth_path'), use_oob = TRUE)
-   # 
-   # 
-   # # Connect to DB
-   # bq_con <- DBI::dbConnect(bigquery(),
-   #                          project = Sys.getenv('project_id'),
-   #                          dataset = Sys.getenv('dataset_id'))
-   # 
-   # # Pull data from database
-   # sql <- glue('select * from arxiv_paper_repository.arxiv_paper_repository where date(submitted) between \'{floor_date(Sys.Date() - 90, \'month\')}\' AND \'{Sys.Date() - 2}\' AND title <> \'\' ')
-   # 
-   # full_results <- bigrquery::bq_table_download(bigrquery::bq_project_query(x = Sys.getenv('project_id'), query = sql), max_results = Inf)
-   # })
 
    observeEvent(input$arxiv.get.results, {
       
       # Input parameters
+      
+      ## Title
+      parsed_string <- process_search_string(search_string = input$search_string)
       
       ## Select Categories to search
       selected_cats <- c(input$subject_select)
@@ -95,19 +111,26 @@ server <- function(input, output) {
       withProgress(message = 'Fetching Results', value = 0.5, {
          
          
-         # Pull data from database
-         # sql <- glue("select * from arxiv_paper_repository.arxiv_paper_repository where date(submitted) between '{as_date(date_range[1])}' AND '{as_date(date_range[2])}' AND title <> ''")
-         # 
-         # full_results <- bigrquery::bq_table_download(bigrquery::bq_project_query(x = Sys.getenv('project_id'), query = sql), max_results = Inf)
+         # Pull data from database - full_results is initially downloaded from the DB
          
          full_results <- full_results %>% 
             arrange(submitted) %>% 
             filter(id != "")
          
-         # Filter the dataframe based on input
-         full_results <- full_results %>% 
-            filter((str_detect(string = categories, pattern = paste(selected_cats, collapse = "|"), negate = FALSE)) & 
-                      between(as_date(submitted), as_date(date_range[1]), as_date(date_range[2]) )  )
+         if (nchar(parsed_string) == 0) {
+            # Filter the dataframe based on input
+            full_results <- full_results %>% 
+               filter((str_detect(string = categories, pattern = paste(selected_cats, collapse = "|"), negate = FALSE)) & 
+                         between(as_date(submitted), as_date(date_range[1]), as_date(date_range[2]) ))
+         } else {
+            
+            # Filter the dataframe based on input
+            full_results <- full_results %>% 
+               filter((str_detect(string = categories, pattern = paste(selected_cats, collapse = "|"), negate = FALSE)) & 
+                         between(as_date(submitted), as_date(date_range[1]), as_date(date_range[2]) ) &
+                         str_detect(string = title, pattern = parsed_string, negate = FALSE))
+         }
+         
          
       })
       
