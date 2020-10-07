@@ -34,4 +34,4 @@ COPY Rprofile.site /usr/lib/R/etc/
 
 EXPOSE 3838
 
-CMD ["R", "-e", "library(bigrquery); library(DBI); library(lubridate); library(dotenv); library(glue); source('/root/app_stuff/download_data.R'); setwd('/root/app_stuff'); dotenv::load_dot_env(); shiny::runApp('/root/app_stuff', host='0.0.0.0', port=3838)"]
+CMD ["R", "-e", "library(bigrquery); library(DBI); library(lubridate); library(cleanNLP); cnlp_init_udpipe(); library(dotenv); library(glue); source('/root/app_stuff/download_data.R'); setwd('/root/app_stuff'); dotenv::load_dot_env(); shiny::runApp('/root/app_stuff', host='0.0.0.0', port=3838)"]
