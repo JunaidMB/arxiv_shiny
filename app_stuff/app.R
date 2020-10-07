@@ -72,8 +72,10 @@ server <- function(input, output) {
    
    # Define a helper function
    process_search_string <- function(search_string) {
-      
-      if (search_string > 0) {
+      if (stri_count(search_string, regex="\\S+") == 1) {
+         
+         return(search_string)
+      } else if (stri_count(search_string, regex="\\S+") > 1) {
          
          df <- data.frame(id = 1,
                           text = search_string)
@@ -86,13 +88,13 @@ server <- function(input, output) {
             filter(upos %in% c("NOUN", "PROPN", "SYM")) %>% 
             pull(token)
          
-         parsed_string <- paste(keywords, collapse =  " | ")
+         parsed_string <- paste(keywords, collapse =  "|")
          
          return(parsed_string) } else {
             
             return("")
          }
-      }
+   }
 
 
    observeEvent(input$arxiv.get.results, {
