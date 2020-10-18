@@ -17,7 +17,7 @@ select_choices <- aRxiv::arxiv_cats$abbreviation
 names(select_choices) <- aRxiv::arxiv_cats$description
 choices <- select_choices[select_choices %in% categories]
 
-ui <- fluidPage(
+ui <- function(req) { fluidPage(
    title = 'Arxiv Aggregator - A Web App over the Arxiv API',
    
    titlePanel("A Web App over the Arxiv API"),
@@ -66,7 +66,7 @@ ui <- fluidPage(
          
       )
    )
-)
+) }
 
 server <- function(input, output) {
    
