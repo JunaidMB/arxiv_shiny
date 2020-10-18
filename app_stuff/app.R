@@ -34,10 +34,10 @@ ui <- fluidPage(
          
          dateRangeInput('dateRange',
                         label = 'Date Range',
-                        start = Sys.Date() - 3,
-                        end = Sys.Date() - 2,
-                        min = floor_date(Sys.Date() - 90, 'month'),
-                        max = Sys.Date()
+                        start = lubridate::today(tzone = "GMT") - 3,
+                        end = lubridate::today(tzone = "GMT") - 2,
+                        min = floor_date(lubridate::today(tzone = "GMT") - 90, 'month'),
+                        max = lubridate::today(tzone = "GMT")
          ),
          
          textInput(inputId = 'search_string',
