@@ -11,6 +11,7 @@ library(cleanNLP)
 library(bigrquery)
 library(DBI)
 
+
 # Define selection categories for the UI
 categories <- c('stat.AP', 'stat.CO', 'stat.ML', 'stat.ME', 'stat.TH','math.OC', 'math.PR', 'math.ST', 'math.CO', 'cs.AI', 'cs.GT', 'cs.CV')
 select_choices <- aRxiv::arxiv_cats$abbreviation
@@ -49,6 +50,7 @@ ui <- function(req) { fluidPage(
          br(),
          
          actionButton(inputId = "arxiv.get.results", label = "Run"),
+         downloadButton(outputId = "downloadData", label = "Download"),
          
          
          
@@ -100,48 +102,48 @@ server <- function(input, output) {
    observeEvent(input$arxiv.get.results, {
       
       # Input parameters
-      
+
       ## Title
       parsed_string <- process_search_string(search_string = input$search_string)
-      
+
       ## Select Categories to search
       selected_cats <- c(input$subject_select)
 
       ## Select date range
       date_range <- input$dateRange
-      
+
       withProgress(message = 'Fetching Results', value = 0.5, {
-         
-         
+
+
          # Pull data from database - full_results is initially downloaded from the DB
-         
-         full_results <- full_results %>% 
-            arrange(submitted) %>% 
+
+         full_results <- full_results %>%
+            arrange(submitted) %>%
             filter(id != "")
-         
+
          if (nchar(parsed_string) == 0) {
             # Filter the dataframe based on input
-            full_results <- full_results %>% 
-               filter((str_detect(string = categories, pattern = paste(selected_cats, collapse = "|"), negate = FALSE)) & 
+            full_results <- full_results %>%
+               filter((str_detect(string = categories, pattern = paste(selected_cats, collapse = "|"), negate = FALSE)) &
                          between(as_date(submitted), as_date(date_range[1]), as_date(date_range[2]) ))
          } else {
-            
+
             # Filter the dataframe based on input
-            full_results <- full_results %>% 
-               filter((str_detect(string = categories, pattern = paste(selected_cats, collapse = "|"), negate = FALSE)) & 
+            full_results <- full_results %>%
+               filter((str_detect(string = categories, pattern = paste(selected_cats, collapse = "|"), negate = FALSE)) &
                          between(as_date(submitted), as_date(date_range[1]), as_date(date_range[2]) ) &
                          str_detect(string = title, pattern = parsed_string, negate = FALSE))
          }
-         
-         
+
+
       })
-      
+
       ## Restrict to only a few columns
-      results <- full_results %>% 
+      results <- full_results %>%
          mutate(submitted = str_sub(submitted, end = 10),
                 authors = str_replace_all(authors, "[|]", " & "),
-                link_pdf = paste0("<a href='", link_pdf, "'target='_blank'>", link_pdf, "</a>")) %>% 
-         select(Title = title, Submission_Date = submitted, Authors = authors, PDF_Link = link_pdf, Primary_Category = primary_category) %>% 
+                link_pdf = paste0("<a href='", link_pdf, "'target='_blank'>", link_pdf, "</a>")) %>%
+         select(Title = title, Submission_Date = submitted, Authors = authors, PDF_Link = link_pdf, Primary_Category = primary_category) %>%
          distinct()
       
       # Output table
@@ -150,6 +152,62 @@ server <- function(input, output) {
       
       
    }) 
+   
+   output$downloadData <- downloadHandler(
+      filename = function() {
+         date_range <- input$dateRange
+         paste("arxiv_export_",date_range[1], "-", date_range[2], ".csv",  sep = "")
+      },
+      content = function(file) {
+         # Input parameters
+         
+         ## Title
+         parsed_string <- process_search_string(search_string = input$search_string)
+         
+         ## Select Categories to search
+         selected_cats <- c(input$subject_select)
+         
+         ## Select date range
+         date_range <- input$dateRange
+         
+         withProgress(message = 'Fetching Results', value = 0.5, {
+            
+            
+            # Pull data from database - full_results is initially downloaded from the DB
+            
+            full_results <- full_results %>%
+               arrange(submitted) %>%
+               filter(id != "")
+            
+            if (nchar(parsed_string) == 0) {
+               # Filter the dataframe based on input
+               full_results <- full_results %>%
+                  filter((str_detect(string = categories, pattern = paste(selected_cats, collapse = "|"), negate = FALSE)) &
+                            between(as_date(submitted), as_date(date_range[1]), as_date(date_range[2]) ))
+            } else {
+               
+               # Filter the dataframe based on input
+               full_results <- full_results %>%
+                  filter((str_detect(string = categories, pattern = paste(selected_cats, collapse = "|"), negate = FALSE)) &
+                            between(as_date(submitted), as_date(date_range[1]), as_date(date_range[2]) ) &
+                            str_detect(string = title, pattern = parsed_string, negate = FALSE))
+            }
+            
+            
+         })
+         
+         ## Restrict to only a few columns
+         results <- full_results %>%
+            mutate(submitted = str_sub(submitted, end = 10),
+                   authors = str_replace_all(authors, "[|]", " & "),
+                   link_pdf = link_pdf) %>%
+            select(Title = title, Submission_Date = submitted, Authors = authors, PDF_Link = link_pdf, Primary_Category = primary_category) %>%
+            distinct()
+         
+         write.csv(results, file)
+      }
+   )
+   
    
    
 }
