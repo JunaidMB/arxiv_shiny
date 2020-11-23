@@ -7,4 +7,5 @@
 /app_stuff/.env
 arxiv_papers.csv
 database_update.R
+.DS_Store
 
