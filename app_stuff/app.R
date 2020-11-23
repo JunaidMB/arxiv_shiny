@@ -6,33 +6,39 @@ library(stringr)
 library(lubridate)
 library(ggplot2)
 library(shiny)
+library(dotenv)
 library(cleanNLP)
+library(bigrquery)
+library(DBI)
+
 
 # Define selection categories for the UI
+categories <- c('stat.AP', 'stat.CO', 'stat.ML', 'stat.ME', 'stat.TH','math.OC', 'math.PR', 'math.ST', 'math.CO', 'cs.AI', 'cs.GT', 'cs.CV')
 select_choices <- aRxiv::arxiv_cats$abbreviation
 names(select_choices) <- aRxiv::arxiv_cats$description
+choices <- select_choices[select_choices %in% categories]
 
-ui <- fluidPage(
-   title = 'Arxiv Aggregator - A Web App over the Arxiv API',
+ui <- function(req) { fluidPage(
+   title = "Arxiv Aggregator - Reader's Digest",
    
-   titlePanel("A Web App over the Arxiv API"),
+   titlePanel("Arxiv Reader's Digest"),
    sidebarLayout(
       sidebarPanel(
          
          selectizeInput(
             inputId = 'subject_select',
             label = 'Select the Subjects from Menu',
-            choices = select_choices,
+            choices = choices,
             selected = "stat.ML",
             multiple = TRUE),
          
          
          dateRangeInput('dateRange',
                         label = 'Date Range',
-                        start = Sys.Date() - 3,
-                        end = Sys.Date() - 2,
-                        min = floor_date(Sys.Date() - 90, 'month'),
-                        max = Sys.Date()
+                        start = lubridate::today(tzone = "GMT") - 3,
+                        end = lubridate::today(tzone = "GMT") - 2,
+                        min = floor_date(lubridate::today(tzone = "GMT") - 90, 'month'),
+                        max = lubridate::today(tzone = "GMT")
          ),
          
          textInput(inputId = 'search_string',
@@ -40,18 +46,11 @@ ui <- fluidPage(
                    value = "",
                    placeholder = "Markov Chains"),
          
-         numericInput(inputId = "resultlimits",
-                      label = "How many results would you like to return? \n Note: You may see fewer results than the limit",
-                      value = 100,
-                      min = 1,
-                      max = 1000,
-                      step = 1),
-         
-         h5("Wait 3 seconds before sending a new request"),
          
          br(),
          
          actionButton(inputId = "arxiv.get.results", label = "Run"),
+         downloadButton(outputId = "downloadData", label = "Download"),
          
          
          
@@ -69,14 +68,16 @@ ui <- fluidPage(
          
       )
    )
-)
+) }
 
 server <- function(input, output) {
    
    # Define a helper function
    process_search_string <- function(search_string) {
-      
-      if (search_string > 0) {
+      if (stri_count(search_string, regex="\\S+") == 1) {
+         
+         return(search_string)
+      } else if (stri_count(search_string, regex="\\S+") > 1) {
          
          df <- data.frame(id = 1,
                           text = search_string)
@@ -89,69 +90,90 @@ server <- function(input, output) {
             filter(upos %in% c("NOUN", "PROPN", "SYM")) %>% 
             pull(token)
          
-         parsed_string <- paste(keywords, collapse =  " | ")
+         parsed_string <- paste(keywords, collapse =  "|")
          
          return(parsed_string) } else {
             
             return("")
          }
-      
    }
    
-   observeEvent(input$arxiv.get.results, {
-      
+   # Reactive functions
+   build_table <- eventReactive(input$arxiv.get.results, {
       # Input parameters
+      
       ## Title
       parsed_string <- process_search_string(search_string = input$search_string)
-      title <- if_else(nchar(parsed_string) > 0, glue('ti:({parsed_string})'), "") 
       
       ## Select Categories to search
       selected_cats <- c(input$subject_select)
-      categories <- paste(selected_cats, collapse = " | ")
-      cats <- glue('cat:({categories})')
       
       ## Select date range
       date_range <- input$dateRange
-      date1 <- as_date(input$dateRange[[1]])
-      date2 <- as_date(input$dateRange[[2]])
-      formatted_date1 <- str_c(gsub("-", "", date_range[[1]]) , "*")
-      formatted_date2 <- str_c(gsub("-", "", date_range[[2]]) , "*")
-      date_string <- if_else(date2 - date1 > 0, glue('submittedDate:["{formatted_date1}" TO "{formatted_date2}"]'), glue('submittedDate:({formatted_date1})'))
-      
-      # Construct query to feed to arxiv search
-      query_elements <- stri_remove_empty(c(title, cats), FALSE)
-      partial_query_pasted <- paste(query_elements, collapse = ' AND ')
-      query <- glue('{partial_query_pasted} AND {date_string}')
-      
-      
-      ## Limit
-      limit <- c(input$resultlimits)
       
       withProgress(message = 'Fetching Results', value = 0.5, {
          
          
-         full_results <- as_tibble(arxiv_search(query = query
-                                                , limit = limit
-                                                , sort_by = c("submitted")
-                                                , ascending = FALSE
-                                                , batchsize = limit))
+         # Pull data from database - full_results is initially downloaded from the DB
+         
+         full_results <- full_results %>%
+            arrange(submitted) %>%
+            filter(id != "")
+         
+         if (nchar(parsed_string) == 0) {
+            # Filter the dataframe based on input
+            full_results <- full_results %>%
+               filter((str_detect(string = categories, pattern = paste(selected_cats, collapse = "|"), negate = FALSE)) &
+                         between(as_date(submitted), as_date(date_range[1]), as_date(date_range[2]) ))
+         } else {
+            
+            # Filter the dataframe based on input
+            full_results <- full_results %>%
+               filter((str_detect(string = categories, pattern = paste(selected_cats, collapse = "|"), negate = FALSE)) &
+                         between(as_date(submitted), as_date(date_range[1]), as_date(date_range[2]) ) &
+                         str_detect(string = title, pattern = parsed_string, negate = FALSE))
+         }
+         
          
       })
       
       ## Restrict to only a few columns
-      results <- full_results %>% 
+      full_results 
+   })
+   
+   # App rendered table
+   app_build_table <- eventReactive(input$arxiv.get.results, { 
+      build_table() %>% 
          mutate(submitted = str_sub(submitted, end = 10),
                 authors = str_replace_all(authors, "[|]", " & "),
-                link_pdf = paste0("<a href='", link_pdf, "'target='_blank'>", link_pdf, "</a>")) %>% 
-         select(Title = title, Submission_Date = submitted, Authors = authors, PDF_Link = link_pdf, Primary_Category = primary_category)
-      
-      # Output table
-      output$table <- renderDataTable(
-         expr = results, escape = FALSE)
-      
-      
-   }) 
+                link_pdf = paste0("<a href='", link_pdf, "'target='_blank'>", link_pdf, "</a>")) %>%
+         select(Title = title, Submission_Date = submitted, Authors = authors, PDF_Link = link_pdf, Primary_Category = primary_category) %>%
+         distinct()
+         })
    
+   # Download button table
+   
+   dl_build_table <- eventReactive(input$arxiv.get.results, {
+      build_table() %>% 
+         mutate(submitted = str_sub(submitted, end = 10),
+                authors = str_replace_all(authors, "[|]", " & ")) %>%
+         select(Title = title, Submission_Date = submitted, Authors = authors, PDF_Link = link_pdf, Primary_Category = primary_category) %>%
+         distinct()
+   })
+   
+   
+   # Output table
+   output$table <- renderDataTable(expr = app_build_table(), escape = FALSE)
+   
+   # Download Button
+   output$downloadData <- downloadHandler(
+      filename = function() {
+         date_range <- input$dateRange
+         paste("arxiv_export_", date_range[1], "-", date_range[2], ".csv",  sep = "")
+      },
+      content = function(file) {
+         write.csv(dl_build_table(), file)
+      })
    
 }
 
