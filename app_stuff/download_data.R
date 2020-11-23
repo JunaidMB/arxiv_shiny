@@ -8,7 +8,7 @@ library(DBI)
 setwd('/root/app_stuff')
 dotenv::load_dot_env()
 
-   # Authentication for BQ
+# Authentication for BQ
 bigrquery::bq_auth(path = Sys.getenv('auth_path'), use_oob = TRUE)
 
 
