@@ -40,10 +40,10 @@ ui <- function(req) { fluidPage(
                         max = lubridate::today(tzone = "GMT")
          ),
          
-         textInput(inputId = 'search_string',
-                   label = 'Optional: Search Titles',
-                   value = "",
-                   placeholder = "Markov Chains"),
+         # textInput(inputId = 'search_string',
+         #           label = 'Optional: Search Titles',
+         #           value = "",
+         #           placeholder = "Markov Chains"),
          
          
          br(),
@@ -72,30 +72,30 @@ ui <- function(req) { fluidPage(
 server <- function(input, output) {
    
    # Define a helper function
-   process_search_string <- function(search_string) {
-      if (stri_count(search_string, regex="\\S+") == 1) {
-         
-         return(search_string)
-      } else if (stri_count(search_string, regex="\\S+") > 1) {
-         
-         df <- data.frame(id = 1,
-                          text = search_string)
-         
-         nlp_annotated_df <- cnlp_annotate(df)$token
-         
-         # Pull out nouns and symbols only 
-         
-         keywords <- nlp_annotated_df %>% 
-            filter(upos %in% c("NOUN", "PROPN", "SYM")) %>% 
-            pull(token)
-         
-         parsed_string <- paste(keywords, collapse =  "|")
-         
-         return(parsed_string) } else {
-            
-            return("")
-         }
-   }
+   # process_search_string <- function(search_string) {
+   #    if (stri_count(search_string, regex="\\S+") == 1) {
+   #       
+   #       return(search_string)
+   #    } else if (stri_count(search_string, regex="\\S+") > 1) {
+   #       
+   #       df <- data.frame(id = 1,
+   #                        text = search_string)
+   #       
+   #       nlp_annotated_df <- cnlp_annotate(df)$token
+   #       
+   #       # Pull out nouns and symbols only 
+   #       
+   #       keywords <- nlp_annotated_df %>% 
+   #          filter(upos %in% c("NOUN", "PROPN", "SYM")) %>% 
+   #          pull(token)
+   #       
+   #       parsed_string <- paste(keywords, collapse =  "|")
+   #       
+   #       return(parsed_string) } else {
+   #          
+   #          return("")
+   #       }
+   # }
    
    # Reactive functions
    build_table <- eventReactive(input$arxiv.get.results, {
