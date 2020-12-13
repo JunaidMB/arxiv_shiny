@@ -13,10 +13,9 @@ library(DBI)
 
 
 # Define selection categories for the UI
-categories <- c('stat.AP', 'stat.CO', 'stat.ML', 'stat.ME', 'stat.TH','math.OC', 'math.PR', 'math.ST', 'math.CO', 'cs.AI', 'cs.GT', 'cs.CV')
 select_choices <- aRxiv::arxiv_cats$abbreviation
 names(select_choices) <- aRxiv::arxiv_cats$description
-choices <- select_choices[select_choices %in% categories]
+choices <- select_choices
 
 ui <- function(req) { fluidPage(
    title = "Arxiv Aggregator - Reader's Digest",
