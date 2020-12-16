@@ -102,7 +102,7 @@ server <- function(input, output) {
       # Input parameters
       
       ## Title
-      parsed_string <- process_search_string(search_string = input$search_string)
+      #parsed_string <- process_search_string(search_string = input$search_string)
       
       ## Select Categories to search
       selected_cats <- c(input$subject_select)
@@ -119,7 +119,7 @@ server <- function(input, output) {
             arrange(submitted) %>%
             filter(id != "")
          
-         if (nchar(parsed_string) == 0) {
+         if (!exists("parsed_string")) {
             # Filter the dataframe based on input
             full_results <- full_results %>%
                filter((str_detect(string = categories, pattern = paste(selected_cats, collapse = "|"), negate = FALSE)) &

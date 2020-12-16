@@ -172,7 +172,7 @@ arxiv_paper_repository.arxiv_paper_repository
 "
   
   db_state <- bigrquery::bq_table_download(bigrquery::bq_project_query(x = Sys.getenv('project_id'), query = sql), max_results = Inf)
-  transposed_db_state <- t(db_state)
+  transposed_db_state <- t(db_state[-c(1)])
   
   
   # Update table for all categories
